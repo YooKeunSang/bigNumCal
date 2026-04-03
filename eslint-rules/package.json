@@ -1,0 +1,6 @@
+{
+  "name": "eslint-plugin-bignumcal",
+  "version": "1.0.0",
+  "description": "한글 큰숫자 계산기 프로젝트 ESLint 커스텀 룰",
+  "main": "index.js"
+}

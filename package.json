@@ -1,0 +1,20 @@
+{
+  "name": "bignumcal",
+  "version": "2.0.0",
+  "description": "한글 큰숫자(무극) 계산기 웹 앱",
+  "scripts": {
+    "lint": "eslint src/",
+    "test": "jest",
+    "test:architecture": "jest tests/architecture/",
+    "test:unit": "jest tests/unit/",
+    "check": "npm run lint && npm run test:architecture"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "eslint-plugin-bignumcal": "file:./eslint-rules",
+    "jest": "^29.7.0",
+    "glob": "^10.3.10"
+  },
+  "keywords": ["calculator", "korean", "bignumber", "bigint"],
+  "license": "MIT"
+}
