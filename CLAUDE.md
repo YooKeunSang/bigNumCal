@@ -38,6 +38,73 @@ src/utils/    공유 유틸 (Core/UI import 금지 - 순환 방지)
 - `^`는 우결합, 나머지는 좌결합.
 - 괄호 불일치 시 자동으로 닫는 괄호를 추가한다.
 
+## 코딩 컨벤션
+
+### 네이밍
+- 변수/함수: camelCase (`convertChunk`, `appendNumber`)
+- 상수: UPPER_SNAKE_CASE (`KOREAN_UNITS`, `MAX_DIGITS`)
+- 파일: kebab-case (`safe-parser.js`, `bigint-math.js`)
+- CSS 클래스: kebab-case (`display-main`, `mode-btn`)
+
+### 함수 스타일
+- 순수 함수 우선. Core 모듈의 함수는 반드시 입력→출력만 존재해야 한다 (부수효과 금지).
+- 함수 하나는 한 가지 역할만 담당한다.
+- 매개변수 3개 초과 시 객체로 묶는다.
+
+### 모듈 export
+- 각 모듈은 명시적 export를 사용한다 (`export function`, `module.exports`).
+- default export 금지. named export만 사용한다.
+
+## 금지 패턴 (안티패턴)
+
+> 아래 패턴은 구조적으로 감지되며 CI에서 차단된다.
+
+### 보안 금지 패턴
+```javascript
+// ❌ 금지: eval 계열
+eval('1 + 2');
+new Function('return 1 + 2')();
+setTimeout('alert("hi")', 1000);  // 문자열 인자 금지
+
+// ✅ 허용: SafeParser 사용
+SafeParser.evaluate('1 + 2');
+setTimeout(() => { /* ... */ }, 1000);  // 함수 참조
+```
+
+### BigInt 금지 패턴
+```javascript
+// ❌ 금지: Number 타입으로 큰 숫자 처리 (정밀도 손실)
+const big = parseFloat('99999999999999999');  // 100000000000000000 으로 변환됨
+const result = Number(hugeString) * Number(anotherHuge);
+
+// ✅ 허용: BigInt 사용
+const big = BigInt('99999999999999999');  // 99999999999999999n 정확
+const result = BigInt(hugeString) * BigInt(anotherHuge);
+```
+
+### 레이어 금지 패턴
+```javascript
+// ❌ 금지: Core에서 DOM 접근
+// src/core/korean-converter.js
+document.getElementById('display').textContent = result;
+
+// ✅ 허용: Core는 값만 반환, UI에서 DOM 조작
+// src/core/korean-converter.js
+export function toKorean(num) { return '삼억'; }
+// src/ui/display-manager.js
+import { toKorean } from '../core/korean-converter.js';
+document.getElementById('display').textContent = toKorean(num);
+```
+
+### XSS 금지 패턴
+```javascript
+// ❌ 금지: innerHTML에 사용자 입력 삽입
+element.innerHTML = userInput;
+
+// ✅ 허용: textContent 사용
+element.textContent = userInput;
+```
+
 ## 명령어
 ```bash
 npm run lint              # ESLint (커스텀 보안/레이어 규칙)

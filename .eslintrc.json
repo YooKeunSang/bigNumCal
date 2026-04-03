@@ -13,6 +13,7 @@
     "bignumcal/no-eval-usage": "error",
     "bignumcal/no-dom-in-core": "error",
     "bignumcal/no-ui-import-in-core": "error",
+    "bignumcal/no-number-in-bigint": "error",
     "no-eval": "error"
   }
 }

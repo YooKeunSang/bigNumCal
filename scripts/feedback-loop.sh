@@ -147,9 +147,9 @@ else
         echo ""
     done
 
-    # CLAUDE.md 피드백 이력 업데이트 안내
+    # CLAUDE.md 피드백 이력 자동 업데이트
     echo -e "  ${CYAN}[자동 기록] 피드백 로그 저장: $LOG_FILE${NC}"
-    echo -e "  ${CYAN}[수동 조치] CLAUDE.md '피드백 루프 이력' 섹션에 보강 내용을 기록하세요${NC}"
+    node "$PROJECT_DIR/scripts/update-claude-md.js" "$LOG_FILE"
 fi
 
 echo ""
