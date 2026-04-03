@@ -2,10 +2,30 @@
  * ModeManager - 모드 전환 관리
  *
  * 레이어: UI
- * 의존성 규칙:
- *   - Core 모듈 import 가능
- *   - 다른 UI 모듈 import 가능
- *   - eval() / Function() 사용 금지
  */
+import { setState } from '../utils/state.js';
+import { updateDisplay } from './display-manager.js';
 
-// TODO: Phase 4에서 구현
+function switchMode(mode) {
+  setState({ currentMode: mode });
+
+  const modeBtns = document.querySelectorAll('.mode-btn');
+  modeBtns.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+
+  const buttonModes = document.querySelectorAll('.buttons');
+  buttonModes.forEach(buttons => {
+    buttons.classList.toggle('active', buttons.classList.contains(`${mode}-mode`));
+  });
+
+  updateDisplay();
+}
+
+function initModeListeners() {
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchMode(btn.dataset.mode));
+  });
+}
+
+export { switchMode, initModeListeners };

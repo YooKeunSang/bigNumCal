@@ -2,9 +2,39 @@
  * BackgroundManager - 배경화면 관리
  *
  * 레이어: UI
- * 의존성 규칙:
- *   - Core 모듈 import 가능
- *   - eval() / Function() 사용 금지
  */
 
-// TODO: Phase 4에서 구현
+function initBackground() {
+  const bgUpload = document.getElementById('bg-upload');
+  const clearBg = document.getElementById('clear-bg');
+  const overlay = document.querySelector('.background-overlay');
+
+  if (!bgUpload || !clearBg || !overlay) return;
+
+  // 저장된 배경 불러오기
+  const savedBg = localStorage.getItem('calculatorBackground');
+  if (savedBg) {
+    overlay.style.backgroundImage = `url(${savedBg})`;
+    overlay.classList.add('active');
+  }
+
+  bgUpload.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      overlay.style.backgroundImage = `url(${event.target.result})`;
+      overlay.classList.add('active');
+      localStorage.setItem('calculatorBackground', event.target.result);
+    };
+    reader.readAsDataURL(file);
+  });
+
+  clearBg.addEventListener('click', () => {
+    overlay.style.backgroundImage = '';
+    overlay.classList.remove('active');
+    localStorage.removeItem('calculatorBackground');
+  });
+}
+
+export { initBackground };
