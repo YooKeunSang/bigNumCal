@@ -19,6 +19,18 @@ jobs:
       - name: Run ESLint (커스텀 보안/레이어 규칙)
         run: npm run lint
 
-      - name: Run Architecture Tests (레이어 의존성 검증)
+      - name: Run Architecture Tests (레이어 의존성 + 보안 제약)
         run: npm run test:architecture
         # 실패 시 PR 머지 불가
+
+      - name: Run Feedback Loop (전체 사이클 검증)
+        if: failure()
+        run: npm run feedback || true
+
+      - name: Upload Feedback Log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: feedback-log
+          path: feedback-log/
+          retention-days: 30

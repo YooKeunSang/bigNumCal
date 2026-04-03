@@ -7,7 +7,9 @@
     "test": "jest",
     "test:architecture": "jest tests/architecture/",
     "test:unit": "jest tests/unit/",
-    "check": "npm run lint && npm run test:architecture"
+    "check": "npm run lint && npm run test:architecture",
+    "feedback": "bash scripts/feedback-loop.sh",
+    "precommit": "bash scripts/pre-commit-check.sh"
   },
   "devDependencies": {
     "eslint": "^8.56.0",
