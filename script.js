@@ -1,451 +1,523 @@
-// 계산기 상태
-let currentInput = '0';
-let expression = '';
-let currentMode = 'korean';
-let lastResult = null;
+/**
+ * 한글 큰숫자 계산기 - 메인 진입점
+ *
+ * 브라우저에서 직접 실행되는 통합 스크립트.
+ * src/ 모듈의 로직을 인라인으로 포함한다.
+ */
 
-// DOM 요소
-const displayMain = document.getElementById('display');
-const displayExpression = document.getElementById('expression');
-const displayKorean = document.getElementById('korean-display');
-const modeBtns = document.querySelectorAll('.mode-btn');
-const buttonModes = document.querySelectorAll('.buttons');
-const bgUpload = document.getElementById('bg-upload');
-const clearBg = document.getElementById('clear-bg');
-const backgroundOverlay = document.querySelector('.background-overlay');
+// ============================================================================
+// [Utils] State Management
+// ============================================================================
+const DEFAULT_STATE = {
+  currentInput: '0',
+  expression: '',
+  currentMode: 'korean',
+  lastResult: null,
+  waitingForOperand: false,
+};
 
-// 한글 숫자 단위 (무극까지)
-const koreanUnits = [
-    { name: '', value: 1 },
-    { name: '만', value: 10000 },
-    { name: '억', value: 100000000 },
-    { name: '조', value: 1000000000000 },
-    { name: '경', value: 10000000000000000 },
-    { name: '해', value: 100000000000000000000n },
-    { name: '자', value: 1000000000000000000000000n },
-    { name: '양', value: 10000000000000000000000000000n },
-    { name: '구', value: 100000000000000000000000000000000n },
-    { name: '간', value: 1000000000000000000000000000000000000n },
-    { name: '정', value: 10000000000000000000000000000000000000000n },
-    { name: '재', value: 100000000000000000000000000000000000000000000n },
-    { name: '극', value: 1000000000000000000000000000000000000000000000000n },
-    { name: '항하사', value: 10000000000000000000000000000000000000000000000000000n },
-    { name: '아승기', value: 100000000000000000000000000000000000000000000000000000000n },
-    { name: '나유타', value: 1000000000000000000000000000000000000000000000000000000000000n },
-    { name: '불가사의', value: 10000000000000000000000000000000000000000000000000000000000000000n },
-    { name: '무량대수', value: 100000000000000000000000000000000000000000000000000000000000000000000n },
-    { name: '무극', value: 1000000000000000000000000000000000000000000000000000000000000000000000000n }
+let _state = { ...DEFAULT_STATE };
+const _listeners = [];
+
+function getState() { return _state; }
+function setState(partial) {
+  _state = { ..._state, ...partial };
+  _listeners.forEach(fn => fn(_state));
+}
+function resetState() {
+  _state = { ...DEFAULT_STATE };
+  _listeners.forEach(fn => fn(_state));
+}
+
+// ============================================================================
+// [Core] SafeParser - Shunting-yard 수식 파서
+// ============================================================================
+const TOKEN = { NUMBER: 'N', OPERATOR: 'O', FUNCTION: 'F', LPAREN: 'L', RPAREN: 'R', CONSTANT: 'C' };
+
+const OPS = {
+  '+': { prec: 1, assoc: 'left' },
+  '-': { prec: 1, assoc: 'left' },
+  '×': { prec: 2, assoc: 'left' },
+  '÷': { prec: 2, assoc: 'left' },
+  '^': { prec: 3, assoc: 'right' },
+};
+
+const FUNCS = new Set(['sin', 'cos', 'tan', 'log', 'ln', 'sqrt']);
+const CONSTS = { 'π': Math.PI, 'e': Math.E };
+
+function tokenize(expr) {
+  const tokens = [];
+  let i = 0;
+  while (i < expr.length) {
+    const ch = expr[i];
+    if (ch === ' ') { i++; continue; }
+
+    if ((ch >= '0' && ch <= '9') || (ch === '.' && i + 1 < expr.length && expr[i + 1] >= '0' && expr[i + 1] <= '9')) {
+      let num = '';
+      while (i < expr.length && ((expr[i] >= '0' && expr[i] <= '9') || expr[i] === '.')) { num += expr[i]; i++; }
+      tokens.push({ type: TOKEN.NUMBER, value: num });
+      continue;
+    }
+
+    if (ch === '-' && (tokens.length === 0 || tokens[tokens.length - 1].type === TOKEN.OPERATOR || tokens[tokens.length - 1].type === TOKEN.LPAREN)) {
+      let num = '-'; i++;
+      while (i < expr.length && ((expr[i] >= '0' && expr[i] <= '9') || expr[i] === '.')) { num += expr[i]; i++; }
+      if (num === '-') throw new Error('잘못된 수식');
+      tokens.push({ type: TOKEN.NUMBER, value: num });
+      continue;
+    }
+
+    if (OPS[ch]) { tokens.push({ type: TOKEN.OPERATOR, value: ch }); i++; continue; }
+    if (ch === '(') { tokens.push({ type: TOKEN.LPAREN, value: '(' }); i++; continue; }
+    if (ch === ')') { tokens.push({ type: TOKEN.RPAREN, value: ')' }); i++; continue; }
+    if (CONSTS[ch] !== undefined) { tokens.push({ type: TOKEN.CONSTANT, value: ch }); i++; continue; }
+
+    if (ch >= 'a' && ch <= 'z') {
+      let name = '';
+      while (i < expr.length && expr[i] >= 'a' && expr[i] <= 'z') { name += expr[i]; i++; }
+      if (FUNCS.has(name)) { tokens.push({ type: TOKEN.FUNCTION, value: name }); continue; }
+      throw new Error(`유효하지 않은 함수: ${name}`);
+    }
+
+    throw new Error(`유효하지 않은 문자: ${ch}`);
+  }
+  return tokens;
+}
+
+function autoCloseParen(tokens) {
+  let open = 0;
+  for (const t of tokens) { if (t.type === TOKEN.LPAREN) open++; if (t.type === TOKEN.RPAREN) open--; }
+  while (open > 0) { tokens.push({ type: TOKEN.RPAREN, value: ')' }); open--; }
+  return tokens;
+}
+
+function shuntingYard(tokens) {
+  const output = [], opStack = [];
+  for (const t of tokens) {
+    if (t.type === TOKEN.NUMBER || t.type === TOKEN.CONSTANT) { output.push(t); continue; }
+    if (t.type === TOKEN.FUNCTION) { opStack.push(t); continue; }
+    if (t.type === TOKEN.OPERATOR) {
+      const o1 = OPS[t.value];
+      while (opStack.length > 0) {
+        const top = opStack[opStack.length - 1];
+        if (top.type === TOKEN.LPAREN) break;
+        if (top.type === TOKEN.FUNCTION) { output.push(opStack.pop()); continue; }
+        const o2 = OPS[top.value];
+        if (o2 && ((o1.assoc === 'left' && o1.prec <= o2.prec) || (o1.assoc === 'right' && o1.prec < o2.prec))) { output.push(opStack.pop()); } else break;
+      }
+      opStack.push(t); continue;
+    }
+    if (t.type === TOKEN.LPAREN) { opStack.push(t); continue; }
+    if (t.type === TOKEN.RPAREN) {
+      while (opStack.length > 0 && opStack[opStack.length - 1].type !== TOKEN.LPAREN) output.push(opStack.pop());
+      if (opStack.length > 0 && opStack[opStack.length - 1].type === TOKEN.LPAREN) opStack.pop();
+      if (opStack.length > 0 && opStack[opStack.length - 1].type === TOKEN.FUNCTION) output.push(opStack.pop());
+    }
+  }
+  while (opStack.length > 0) { const top = opStack.pop(); if (top.type !== TOKEN.LPAREN) output.push(top); }
+  return output;
+}
+
+function _toNumber(val) {
+  return typeof val === 'bigint' ? Number(val) : val;
+}
+
+function evaluateRPN(rpn) {
+  const stack = [];
+  for (const t of rpn) {
+    if (t.type === TOKEN.NUMBER) {
+      stack.push(t.value.includes('.') ? parseFloat(t.value) : BigInt(t.value));
+      continue;
+    }
+    if (t.type === TOKEN.CONSTANT) { stack.push(CONSTS[t.value]); continue; }
+    if (t.type === TOKEN.OPERATOR) {
+      const b = stack.pop(), a = stack.pop();
+      const bothBigInt = typeof a === 'bigint' && typeof b === 'bigint';
+      switch (t.value) {
+        case '+': stack.push(bothBigInt ? a + b : _toNumber(a) + _toNumber(b)); break;
+        case '-': stack.push(bothBigInt ? a - b : _toNumber(a) - _toNumber(b)); break;
+        case '×': stack.push(bothBigInt ? a * b : _toNumber(a) * _toNumber(b)); break;
+        case '÷':
+          if (bothBigInt) {
+            if (b === 0n) throw new Error('0으로 나눌 수 없습니다');
+            stack.push(a % b === 0n ? a / b : _toNumber(a) / _toNumber(b));
+          } else {
+            const nb = _toNumber(b);
+            if (nb === 0) throw new Error('0으로 나눌 수 없습니다');
+            stack.push(_toNumber(a) / nb);
+          }
+          break;
+        case '^':
+          if (bothBigInt && b >= 0n) { stack.push(a ** b); }
+          else { stack.push(Math.pow(_toNumber(a), _toNumber(b))); }
+          break;
+      }
+      continue;
+    }
+    if (t.type === TOKEN.FUNCTION) {
+      const a = _toNumber(stack.pop());
+      switch (t.value) {
+        case 'sin': stack.push(Math.sin(a)); break;
+        case 'cos': stack.push(Math.cos(a)); break;
+        case 'tan': stack.push(Math.tan(a)); break;
+        case 'log': stack.push(Math.log10(a)); break;
+        case 'ln': stack.push(Math.log(a)); break;
+        case 'sqrt': stack.push(Math.sqrt(a)); break;
+      }
+    }
+  }
+  if (stack.length !== 1) throw new Error('잘못된 수식');
+  return stack[0];
+}
+
+function safeEvaluate(expr) {
+  if (!expr || expr.trim() === '') throw new Error('빈 수식');
+  let tokens = tokenize(expr.trim());
+  if (tokens.length === 0) throw new Error('빈 수식');
+  tokens = autoCloseParen(tokens);
+  return evaluateRPN(shuntingYard(tokens));
+}
+
+// ============================================================================
+// [Core] KoreanConverter - 숫자→한글 변환
+// ============================================================================
+const DIGIT_NAMES = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+
+const KOREAN_UNITS = [
+  { name: '무극', value: 10n ** 72n },
+  { name: '무량대수', value: 10n ** 68n },
+  { name: '불가사의', value: 10n ** 64n },
+  { name: '나유타', value: 10n ** 60n },
+  { name: '아승기', value: 10n ** 56n },
+  { name: '항하사', value: 10n ** 52n },
+  { name: '극', value: 10n ** 48n },
+  { name: '재', value: 10n ** 44n },
+  { name: '정', value: 10n ** 40n },
+  { name: '간', value: 10n ** 36n },
+  { name: '구', value: 10n ** 32n },
+  { name: '양', value: 10n ** 28n },
+  { name: '자', value: 10n ** 24n },
+  { name: '해', value: 10n ** 20n },
+  { name: '경', value: 10n ** 16n },
+  { name: '조', value: 10n ** 12n },
+  { name: '억', value: 10n ** 8n },
+  { name: '만', value: 10n ** 4n },
 ];
 
-const digitNames = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
-const placeNames = ['', '십', '백', '천'];
-
-// 초기화
-function init() {
-    updateDisplay();
-    setupEventListeners();
-}
-
-// 이벤트 리스너 설정
-function setupEventListeners() {
-    // 모드 전환
-    modeBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const mode = btn.dataset.mode;
-            switchMode(mode);
-        });
-    });
-
-    // 배경화면 업로드
-    bgUpload.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                backgroundOverlay.style.backgroundImage = `url(${event.target.result})`;
-                backgroundOverlay.classList.add('active');
-                localStorage.setItem('calculatorBackground', event.target.result);
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-
-    // 배경화면 제거
-    clearBg.addEventListener('click', () => {
-        backgroundOverlay.style.backgroundImage = '';
-        backgroundOverlay.classList.remove('active');
-        localStorage.removeItem('calculatorBackground');
-    });
-
-    // 저장된 배경화면 불러오기
-    const savedBg = localStorage.getItem('calculatorBackground');
-    if (savedBg) {
-        backgroundOverlay.style.backgroundImage = `url(${savedBg})`;
-        backgroundOverlay.classList.add('active');
+function convertChunk(n) {
+  if (n === 0n) return '';
+  let result = '';
+  const digits = [
+    { place: '천', divisor: 1000n },
+    { place: '백', divisor: 100n },
+    { place: '십', divisor: 10n },
+  ];
+  let remainder = n;
+  for (const { place, divisor } of digits) {
+    const digit = remainder / divisor;
+    remainder = remainder % divisor;
+    if (digit > 0n) {
+      result += digit === 1n ? place : DIGIT_NAMES[+`${digit}`] + place;
     }
-
-    // 키보드 입력
-    document.addEventListener('keydown', handleKeyboard);
+  }
+  if (remainder > 0n) result += DIGIT_NAMES[+`${remainder}`];
+  return result;
 }
 
-// 키보드 처리
-function handleKeyboard(e) {
-    if (e.key >= '0' && e.key <= '9') {
-        appendNumber(e.key);
-    } else if (e.key === '.') {
-        appendNumber('.');
-    } else if (e.key === '+' || e.key === '-') {
-        appendOperator(e.key);
-    } else if (e.key === '*') {
-        appendOperator('×');
-    } else if (e.key === '/') {
-        appendOperator('÷');
-        e.preventDefault();
-    } else if (e.key === 'Enter') {
-        calculate();
-        e.preventDefault();
-    } else if (e.key === 'Escape') {
-        clearAll();
-    } else if (e.key === 'Backspace') {
-        backspace();
+function toKoreanSmall(num) {
+  if (num === 0n) return '';
+  if (num < 10000n) return convertChunk(num);
+  let remainder = num;
+  const parts = [];
+  const subUnits = [
+    { name: '억', value: 100000000n },
+    { name: '만', value: 10000n },
+  ];
+  for (const unit of subUnits) {
+    if (remainder >= unit.value) {
+      const q = remainder / unit.value;
+      remainder = remainder % unit.value;
+      parts.push(convertChunk(q) + unit.name);
     }
+  }
+  if (remainder > 0n) parts.push(convertChunk(remainder));
+  return parts.join(' ');
 }
 
-// 모드 전환
-function switchMode(mode) {
-    currentMode = mode;
-
-    // 버튼 활성화 상태 변경
-    modeBtns.forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.mode === mode) {
-            btn.classList.add('active');
-        }
-    });
-
-    // 계산기 레이아웃 변경
-    buttonModes.forEach(buttons => {
-        buttons.classList.remove('active');
-        if (buttons.classList.contains(`${mode}-mode`)) {
-            buttons.classList.add('active');
-        }
-    });
-
-    updateDisplay();
-}
-
-// 숫자 입력
-function appendNumber(num) {
-    if (currentInput === '0' && num !== '.') {
-        currentInput = num;
-    } else if (num === '.' && currentInput.includes('.')) {
-        return;
-    } else {
-        currentInput += num;
+function numberToKorean(num) {
+  if (typeof num === 'string') {
+    if (num.includes('.')) {
+      const [intPart, decPart] = num.split('.');
+      const intKorean = numberToKorean(BigInt(intPart || '0'));
+      const digits = [];
+      for (let i = 0; i < decPart.length; i++) {
+        digits.push(DIGIT_NAMES[+decPart[i]] || '영');
+      }
+      return digits.length > 0 ? intKorean + ' 점 ' + digits.join(' ') : intKorean;
     }
-    updateDisplay();
-}
+    num = BigInt(num);
+  }
+  if (typeof num === 'number') num = BigInt(num);
+  if (num < 0n) return '마이너스 ' + numberToKorean(-num);
+  if (num === 0n) return '영';
 
-// 연산자 입력
-function appendOperator(op) {
-    if (expression && currentInput) {
-        calculate();
+  let remainder = num;
+  const parts = [];
+  for (const unit of KOREAN_UNITS) {
+    if (remainder >= unit.value) {
+      const quotient = remainder / unit.value;
+      remainder = remainder % unit.value;
+      if (quotient >= 10000n) {
+        parts.push(toKoreanSmall(quotient) + unit.name);
+      } else {
+        parts.push((convertChunk(quotient) || '일') + unit.name);
+      }
     }
-    expression = (expression || currentInput) + ' ' + op + ' ';
-    currentInput = '0';
-    updateDisplay();
+  }
+  if (remainder > 0n) parts.push(convertChunk(remainder));
+  return parts.join(' ');
 }
 
-// 함수 입력 (공학용)
-function appendFunction(func) {
-    expression += func;
-    currentInput = '0';
-    updateDisplay();
+// ============================================================================
+// [UI] Display Manager
+// ============================================================================
+function formatWithCommas(numStr) {
+  if (!numStr || numStr === 'Error') return numStr;
+  const isNegative = numStr.startsWith('-');
+  let str = isNegative ? numStr.slice(1) : numStr;
+  let [intPart, decPart] = str.split('.');
+  intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  let result = decPart !== undefined ? intPart + '.' + decPart : intPart;
+  return isNegative ? '-' + result : result;
 }
 
-// 상수 입력 (공학용)
-function appendConstant(constant) {
-    if (currentInput === '0') {
-        currentInput = constant;
-    } else {
-        currentInput += constant;
-    }
-    updateDisplay();
-}
-
-// 부호 변경
-function toggleSign() {
-    if (currentInput !== '0') {
-        if (currentInput.startsWith('-')) {
-            currentInput = currentInput.substring(1);
-        } else {
-            currentInput = '-' + currentInput;
-        }
-        updateDisplay();
-    }
-}
-
-// 백스페이스
-function backspace() {
-    if (currentInput.length > 1) {
-        currentInput = currentInput.slice(0, -1);
-    } else {
-        currentInput = '0';
-    }
-    updateDisplay();
-}
-
-// 현재 입력 지우기
-function clearEntry() {
-    currentInput = '0';
-    updateDisplay();
-}
-
-// 전체 지우기
-function clearAll() {
-    currentInput = '0';
-    expression = '';
-    lastResult = null;
-    updateDisplay();
-}
-
-// 계산 수행
-function calculate() {
-    try {
-        let calcExpression = expression + currentInput;
-
-        // 연산자 변환
-        calcExpression = calcExpression.replace(/×/g, '*');
-        calcExpression = calcExpression.replace(/÷/g, '/');
-        calcExpression = calcExpression.replace(/\^/g, '**');
-
-        // Math.ln을 Math.log로 변환
-        calcExpression = calcExpression.replace(/Math\.ln\(/g, 'Math.log(');
-
-        // 계산
-        let result = eval(calcExpression);
-
-        // 결과 반올림 (소수점 10자리)
-        if (!Number.isInteger(result)) {
-            result = Math.round(result * 10000000000) / 10000000000;
-        }
-
-        lastResult = result;
-        currentInput = result.toString();
-        expression = '';
-        updateDisplay();
-    } catch (error) {
-        currentInput = 'Error';
-        expression = '';
-        updateDisplay();
-        setTimeout(() => {
-            currentInput = '0';
-            updateDisplay();
-        }, 1500);
-    }
-}
-
-// 디스플레이 업데이트
 function updateDisplay() {
-    displayMain.textContent = currentInput;
-    displayExpression.textContent = expression;
+  const state = getState();
+  const displayMain = document.getElementById('display');
+  const displayExpression = document.getElementById('expression');
+  const displayKorean = document.getElementById('korean-display');
 
-    // 한글 숫자 표시 (한글 모드일 때)
-    if (currentMode === 'korean' && currentInput !== 'Error') {
-        const korean = numberToKorean(currentInput);
-        displayKorean.textContent = korean;
-    } else {
+  if (displayMain) displayMain.textContent = formatWithCommas(state.currentInput);
+  if (displayExpression) displayExpression.textContent = state.expression;
+  if (displayKorean) {
+    if (state.currentMode === 'korean' && state.currentInput !== 'Error') {
+      try {
+        displayKorean.textContent = numberToKorean(state.currentInput);
+      } catch (e) {
         displayKorean.textContent = '';
+      }
+    } else {
+      displayKorean.textContent = '';
     }
+  }
 }
 
-// 숫자를 한글로 변환
-function numberToKorean(numStr) {
-    // 소수점 처리
-    if (numStr.includes('.')) {
-        const [integer, decimal] = numStr.split('.');
-        const integerKorean = convertIntegerToKorean(integer);
-        const decimalKorean = convertDecimalToKorean(decimal);
-        return integerKorean + (decimalKorean ? ' 점 ' + decimalKorean : '');
-    }
+// ============================================================================
+// [UI] Input Handler
+// ============================================================================
+function appendNumber(num) {
+  const state = getState();
+  let current = state.currentInput;
 
-    return convertIntegerToKorean(numStr);
+  if (state.waitingForOperand) {
+    setState({ currentInput: num === '.' ? '0.' : num, waitingForOperand: false });
+    updateDisplay();
+    return;
+  }
+
+  if (current === '0' && num !== '.') current = num;
+  else if (num === '.' && current.includes('.')) return;
+  else current += num;
+  setState({ currentInput: current });
+  updateDisplay();
 }
 
-// 정수를 한글로 변환
-function convertIntegerToKorean(numStr) {
-    // 음수 처리
-    if (numStr.startsWith('-')) {
-        return '마이너스 ' + convertIntegerToKorean(numStr.substring(1));
-    }
+function appendOperator(op) {
+  const state = getState();
 
-    const num = parseFloat(numStr);
-    if (num === 0) return '영';
-    if (isNaN(num)) return '';
+  if (state.waitingForOperand && op !== '(' && op !== ')') {
+    const expr = state.expression.trimEnd();
+    setState({ expression: expr.slice(0, -1) + op + ' ' });
+    updateDisplay();
+    return;
+  }
 
-    // 과학적 표기법 처리
-    if (numStr.includes('e')) {
-        return numStr + ' (과학적 표기법)';
-    }
+  if (op === '(' || op === ')') {
+    setState({ expression: state.expression + op });
+    updateDisplay();
+    return;
+  }
 
-    // 매우 큰 수 처리
-    if (num >= 1e15) {
-        return convertLargeNumber(numStr);
-    }
-
-    return convertStandardNumber(parseInt(numStr));
+  const expr = state.expression + state.currentInput + ' ' + op + ' ';
+  setState({ expression: expr, currentInput: '0', waitingForOperand: true });
+  updateDisplay();
 }
 
-// 표준 숫자 변환 (천조 이하)
-function convertStandardNumber(num) {
-    if (num === 0) return '영';
-
-    const jo = Math.floor(num / 1000000000000);
-    const eok = Math.floor((num % 1000000000000) / 100000000);
-    const man = Math.floor((num % 100000000) / 10000);
-    const rest = num % 10000;
-
-    let result = '';
-
-    if (jo > 0) {
-        result += convertChunk(jo) + '조';
-    }
-    if (eok > 0) {
-        if (result) result += ' ';
-        result += convertChunk(eok) + '억';
-    }
-    if (man > 0) {
-        if (result) result += ' ';
-        result += convertChunk(man) + '만';
-    }
-    if (rest > 0) {
-        if (result) result += ' ';
-        result += convertChunk(rest);
-    }
-
-    return result || '영';
+function appendFunction(funcName) {
+  const state = getState();
+  setState({ expression: state.expression + funcName + '(', currentInput: '0', waitingForOperand: true });
+  updateDisplay();
 }
 
-// 4자리 숫자 변환
-function convertChunk(num) {
-    if (num === 0) return '';
-
-    const cheon = Math.floor(num / 1000);
-    const baek = Math.floor((num % 1000) / 100);
-    const sip = Math.floor((num % 100) / 10);
-    const il = num % 10;
-
-    let result = '';
-
-    if (cheon > 0) {
-        result += (cheon === 1 ? '' : digitNames[cheon]) + '천';
-    }
-    if (baek > 0) {
-        result += (baek === 1 ? '' : digitNames[baek]) + '백';
-    }
-    if (sip > 0) {
-        result += (sip === 1 ? '' : digitNames[sip]) + '십';
-    }
-    if (il > 0) {
-        result += digitNames[il];
-    }
-
-    return result;
+function appendConstant(value) {
+  setState({ currentInput: String(value) });
+  updateDisplay();
 }
 
-// 큰 숫자 변환 (경 이상)
-function convertLargeNumber(numStr) {
-    const num = parseFloat(numStr);
-
-    // 무극 (10^72)
-    if (num >= 1e72) {
-        const mugeuk = Math.floor(num / 1e72);
-        return convertStandardNumber(mugeuk) + '무극' + (num % 1e72 > 0 ? ' ...' : '');
-    }
-    // 무량대수 (10^68)
-    if (num >= 1e68) {
-        const muryangdaesu = Math.floor(num / 1e68);
-        return convertStandardNumber(muryangdaesu) + '무량대수' + (num % 1e68 > 0 ? ' ...' : '');
-    }
-    // 불가사의 (10^64)
-    if (num >= 1e64) {
-        const bulgasaui = Math.floor(num / 1e64);
-        return convertStandardNumber(bulgasaui) + '불가사의' + (num % 1e64 > 0 ? ' ...' : '');
-    }
-    // 나유타 (10^60)
-    if (num >= 1e60) {
-        const nayuta = Math.floor(num / 1e60);
-        return convertStandardNumber(nayuta) + '나유타' + (num % 1e60 > 0 ? ' ...' : '');
-    }
-    // 아승기 (10^56)
-    if (num >= 1e56) {
-        const aseunggi = Math.floor(num / 1e56);
-        return convertStandardNumber(aseunggi) + '아승기' + (num % 1e56 > 0 ? ' ...' : '');
-    }
-    // 항하사 (10^52)
-    if (num >= 1e52) {
-        const hanghasa = Math.floor(num / 1e52);
-        return convertStandardNumber(hanghasa) + '항하사' + (num % 1e52 > 0 ? ' ...' : '');
-    }
-    // 극 (10^48)
-    if (num >= 1e48) {
-        const geuk = Math.floor(num / 1e48);
-        return convertStandardNumber(geuk) + '극' + (num % 1e48 > 0 ? ' ...' : '');
-    }
-    // 재 (10^44)
-    if (num >= 1e44) {
-        const jae = Math.floor(num / 1e44);
-        return convertStandardNumber(jae) + '재' + (num % 1e44 > 0 ? ' ...' : '');
-    }
-    // 정 (10^40)
-    if (num >= 1e40) {
-        const jeong = Math.floor(num / 1e40);
-        return convertStandardNumber(jeong) + '정' + (num % 1e40 > 0 ? ' ...' : '');
-    }
-    // 간 (10^36)
-    if (num >= 1e36) {
-        const gan = Math.floor(num / 1e36);
-        return convertStandardNumber(gan) + '간' + (num % 1e36 > 0 ? ' ...' : '');
-    }
-    // 구 (10^32)
-    if (num >= 1e32) {
-        const gu = Math.floor(num / 1e32);
-        return convertStandardNumber(gu) + '구' + (num % 1e32 > 0 ? ' ...' : '');
-    }
-    // 양 (10^28)
-    if (num >= 1e28) {
-        const yang = Math.floor(num / 1e28);
-        return convertStandardNumber(yang) + '양' + (num % 1e28 > 0 ? ' ...' : '');
-    }
-    // 자 (10^24)
-    if (num >= 1e24) {
-        const ja = Math.floor(num / 1e24);
-        return convertStandardNumber(ja) + '자' + (num % 1e24 > 0 ? ' ...' : '');
-    }
-    // 해 (10^20)
-    if (num >= 1e20) {
-        const hae = Math.floor(num / 1e20);
-        return convertStandardNumber(hae) + '해' + (num % 1e20 > 0 ? ' ...' : '');
-    }
-    // 경 (10^16)
-    if (num >= 1e16) {
-        const gyeong = Math.floor(num / 1e16);
-        return convertStandardNumber(gyeong) + '경' + (num % 1e16 > 0 ? ' ...' : '');
-    }
-
-    return convertStandardNumber(Math.floor(num));
+function toggleSign() {
+  const state = getState();
+  if (state.currentInput !== '0') {
+    const toggled = state.currentInput.startsWith('-') ? state.currentInput.substring(1) : '-' + state.currentInput;
+    setState({ currentInput: toggled });
+    updateDisplay();
+  }
 }
 
-// 소수 부분을 한글로 변환
-function convertDecimalToKorean(decimal) {
-    let result = '';
-    for (let i = 0; i < decimal.length && i < 10; i++) {
-        const digit = parseInt(decimal[i]);
-        result += digitNames[digit] || '영';
-        if (i < decimal.length - 1) result += ' ';
-    }
-    return result;
+function backspace() {
+  const state = getState();
+  setState({ currentInput: state.currentInput.length > 1 ? state.currentInput.slice(0, -1) : '0' });
+  updateDisplay();
 }
 
-// 초기화 실행
+function clearEntry() {
+  setState({ currentInput: '0', waitingForOperand: false });
+  updateDisplay();
+}
+
+function clearAll() {
+  setState({ currentInput: '0', expression: '', lastResult: null, waitingForOperand: false });
+  updateDisplay();
+}
+
+function calculate() {
+  const state = getState();
+  try {
+    const calcExpression = state.expression + state.currentInput;
+    const result = safeEvaluate(calcExpression);
+    let resultStr;
+    if (typeof result === 'bigint') {
+      resultStr = result.toString();
+    } else if (Number.isInteger(result)) {
+      resultStr = String(result);
+    } else {
+      resultStr = String(Math.round(result * 10000000000) / 10000000000);
+    }
+    setState({ currentInput: resultStr, expression: '', lastResult: result, waitingForOperand: false });
+    updateDisplay();
+  } catch (error) {
+    setState({ currentInput: 'Error', expression: '' });
+    updateDisplay();
+    setTimeout(() => { setState({ currentInput: '0' }); updateDisplay(); }, 1500);
+  }
+}
+
+// ============================================================================
+// [UI] Mode Manager
+// ============================================================================
+function switchMode(mode) {
+  setState({ currentMode: mode });
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  document.querySelectorAll('.buttons').forEach(buttons => {
+    buttons.classList.toggle('active', buttons.classList.contains(`${mode}-mode`));
+  });
+  updateDisplay();
+}
+
+// ============================================================================
+// [UI] Background Manager
+// ============================================================================
+function initBackground() {
+  const bgUpload = document.getElementById('bg-upload');
+  const clearBgBtn = document.getElementById('clear-bg');
+  const overlay = document.querySelector('.background-overlay');
+  if (!bgUpload || !clearBgBtn || !overlay) return;
+
+  const savedBg = localStorage.getItem('calculatorBackground');
+  if (savedBg) {
+    overlay.style.backgroundImage = `url(${savedBg})`;
+    overlay.classList.add('active');
+  }
+
+  bgUpload.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      overlay.style.backgroundImage = `url(${event.target.result})`;
+      overlay.classList.add('active');
+      localStorage.setItem('calculatorBackground', event.target.result);
+    };
+    reader.readAsDataURL(file);
+  });
+
+  clearBgBtn.addEventListener('click', () => {
+    overlay.style.backgroundImage = '';
+    overlay.classList.remove('active');
+    localStorage.removeItem('calculatorBackground');
+  });
+}
+
+// ============================================================================
+// [Init] 이벤트 리스너 설정 및 초기화
+// ============================================================================
+function init() {
+  updateDisplay();
+
+  // 버튼 이벤트 위임
+  document.querySelectorAll('.btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.action;
+      const value = btn.dataset.value;
+
+      switch (action) {
+        case 'number': appendNumber(value); break;
+        case 'operator': appendOperator(value); break;
+        case 'function': appendFunction(value); break;
+        case 'constant': appendConstant(value); break;
+        case 'calculate': calculate(); break;
+        case 'clearAll': clearAll(); break;
+        case 'clearEntry': clearEntry(); break;
+        case 'backspace': backspace(); break;
+        case 'toggleSign': toggleSign(); break;
+      }
+    });
+  });
+
+  // 키보드 입력
+  document.addEventListener('keydown', (e) => {
+    if (e.key >= '0' && e.key <= '9') appendNumber(e.key);
+    else if (e.key === '.') appendNumber('.');
+    else if (e.key === '+' || e.key === '-') appendOperator(e.key);
+    else if (e.key === '*') appendOperator('×');
+    else if (e.key === '/') { appendOperator('÷'); e.preventDefault(); }
+    else if (e.key === 'Enter') { calculate(); e.preventDefault(); }
+    else if (e.key === 'Escape') clearAll();
+    else if (e.key === 'Backspace') backspace();
+  });
+
+  // 모드 전환
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchMode(btn.dataset.mode));
+  });
+
+  // 결과 복사
+  document.getElementById('display').addEventListener('click', () => {
+    const text = getState().currentInput;
+    if (navigator.clipboard && text !== 'Error') navigator.clipboard.writeText(text);
+  });
+
+  const koreanDisplay = document.getElementById('korean-display');
+  if (koreanDisplay) {
+    koreanDisplay.addEventListener('click', () => {
+      const text = koreanDisplay.textContent;
+      if (navigator.clipboard && text) navigator.clipboard.writeText(text);
+    });
+  }
+
+  // 배경화면
+  initBackground();
+}
+
 init();

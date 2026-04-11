@@ -35,6 +35,7 @@
             <div class="calculator">
                 <!-- 디스플레이 -->
                 <div class="display-container">
+                    <span class="copy-hint">클릭하여 복사</span>
                     <div class="display-expression" id="expression"></div>
                     <div class="display-main" id="display">0</div>
                     <div class="display-korean" id="korean-display"></div>
@@ -42,98 +43,98 @@
 
                 <!-- 한글 큰숫자 모드 버튼 -->
                 <div class="buttons korean-mode active">
-                    <button class="btn function" onclick="clearAll()">AC</button>
-                    <button class="btn function" onclick="clearEntry()">CE</button>
-                    <button class="btn function" onclick="backspace()">⌫</button>
-                    <button class="btn operator" onclick="appendOperator('÷')">÷</button>
+                    <button class="btn function" data-action="clearAll">AC</button>
+                    <button class="btn function" data-action="clearEntry">CE</button>
+                    <button class="btn function" data-action="backspace">⌫</button>
+                    <button class="btn operator" data-action="operator" data-value="÷">÷</button>
 
-                    <button class="btn number" onclick="appendNumber('7')">7</button>
-                    <button class="btn number" onclick="appendNumber('8')">8</button>
-                    <button class="btn number" onclick="appendNumber('9')">9</button>
-                    <button class="btn operator" onclick="appendOperator('×')">×</button>
+                    <button class="btn number" data-action="number" data-value="7">7</button>
+                    <button class="btn number" data-action="number" data-value="8">8</button>
+                    <button class="btn number" data-action="number" data-value="9">9</button>
+                    <button class="btn operator" data-action="operator" data-value="×">×</button>
 
-                    <button class="btn number" onclick="appendNumber('4')">4</button>
-                    <button class="btn number" onclick="appendNumber('5')">5</button>
-                    <button class="btn number" onclick="appendNumber('6')">6</button>
-                    <button class="btn operator" onclick="appendOperator('-')">-</button>
+                    <button class="btn number" data-action="number" data-value="4">4</button>
+                    <button class="btn number" data-action="number" data-value="5">5</button>
+                    <button class="btn number" data-action="number" data-value="6">6</button>
+                    <button class="btn operator" data-action="operator" data-value="-">-</button>
 
-                    <button class="btn number" onclick="appendNumber('1')">1</button>
-                    <button class="btn number" onclick="appendNumber('2')">2</button>
-                    <button class="btn number" onclick="appendNumber('3')">3</button>
-                    <button class="btn operator" onclick="appendOperator('+')">+</button>
+                    <button class="btn number" data-action="number" data-value="1">1</button>
+                    <button class="btn number" data-action="number" data-value="2">2</button>
+                    <button class="btn number" data-action="number" data-value="3">3</button>
+                    <button class="btn operator" data-action="operator" data-value="+">+</button>
 
-                    <button class="btn number zero" onclick="appendNumber('0')">0</button>
-                    <button class="btn number" onclick="appendNumber('.')">.</button>
-                    <button class="btn equals" onclick="calculate()">=</button>
+                    <button class="btn number zero" data-action="number" data-value="0">0</button>
+                    <button class="btn number" data-action="number" data-value=".">.</button>
+                    <button class="btn equals" data-action="calculate">=</button>
                 </div>
 
                 <!-- 표준 계산기 모드 -->
                 <div class="buttons standard-mode">
-                    <button class="btn function" onclick="clearAll()">AC</button>
-                    <button class="btn function" onclick="clearEntry()">CE</button>
-                    <button class="btn function" onclick="backspace()">⌫</button>
-                    <button class="btn operator" onclick="appendOperator('÷')">÷</button>
+                    <button class="btn function" data-action="clearAll">AC</button>
+                    <button class="btn function" data-action="clearEntry">CE</button>
+                    <button class="btn function" data-action="backspace">⌫</button>
+                    <button class="btn operator" data-action="operator" data-value="÷">÷</button>
 
-                    <button class="btn number" onclick="appendNumber('7')">7</button>
-                    <button class="btn number" onclick="appendNumber('8')">8</button>
-                    <button class="btn number" onclick="appendNumber('9')">9</button>
-                    <button class="btn operator" onclick="appendOperator('×')">×</button>
+                    <button class="btn number" data-action="number" data-value="7">7</button>
+                    <button class="btn number" data-action="number" data-value="8">8</button>
+                    <button class="btn number" data-action="number" data-value="9">9</button>
+                    <button class="btn operator" data-action="operator" data-value="×">×</button>
 
-                    <button class="btn number" onclick="appendNumber('4')">4</button>
-                    <button class="btn number" onclick="appendNumber('5')">5</button>
-                    <button class="btn number" onclick="appendNumber('6')">6</button>
-                    <button class="btn operator" onclick="appendOperator('-')">-</button>
+                    <button class="btn number" data-action="number" data-value="4">4</button>
+                    <button class="btn number" data-action="number" data-value="5">5</button>
+                    <button class="btn number" data-action="number" data-value="6">6</button>
+                    <button class="btn operator" data-action="operator" data-value="-">-</button>
 
-                    <button class="btn number" onclick="appendNumber('1')">1</button>
-                    <button class="btn number" onclick="appendNumber('2')">2</button>
-                    <button class="btn number" onclick="appendNumber('3')">3</button>
-                    <button class="btn operator" onclick="appendOperator('+')">+</button>
+                    <button class="btn number" data-action="number" data-value="1">1</button>
+                    <button class="btn number" data-action="number" data-value="2">2</button>
+                    <button class="btn number" data-action="number" data-value="3">3</button>
+                    <button class="btn operator" data-action="operator" data-value="+">+</button>
 
-                    <button class="btn function" onclick="toggleSign()">+/-</button>
-                    <button class="btn number" onclick="appendNumber('0')">0</button>
-                    <button class="btn number" onclick="appendNumber('.')">.</button>
-                    <button class="btn equals" onclick="calculate()">=</button>
+                    <button class="btn function" data-action="toggleSign">+/-</button>
+                    <button class="btn number" data-action="number" data-value="0">0</button>
+                    <button class="btn number" data-action="number" data-value=".">.</button>
+                    <button class="btn equals" data-action="calculate">=</button>
                 </div>
 
                 <!-- 공학용 계산기 모드 -->
                 <div class="buttons scientific-mode">
-                    <button class="btn function small" onclick="clearAll()">AC</button>
-                    <button class="btn function small" onclick="clearEntry()">CE</button>
-                    <button class="btn function small" onclick="backspace()">⌫</button>
-                    <button class="btn operator small" onclick="appendOperator('÷')">÷</button>
-                    <button class="btn function small" onclick="appendFunction('Math.sqrt(')">√</button>
+                    <button class="btn function small" data-action="clearAll">AC</button>
+                    <button class="btn function small" data-action="clearEntry">CE</button>
+                    <button class="btn function small" data-action="backspace">⌫</button>
+                    <button class="btn operator small" data-action="operator" data-value="÷">÷</button>
+                    <button class="btn function small" data-action="function" data-value="sqrt">√</button>
 
-                    <button class="btn function small" onclick="appendFunction('Math.sin(')">sin</button>
-                    <button class="btn function small" onclick="appendFunction('Math.cos(')">cos</button>
-                    <button class="btn function small" onclick="appendFunction('Math.tan(')">tan</button>
-                    <button class="btn operator small" onclick="appendOperator('×')">×</button>
-                    <button class="btn function small" onclick="appendOperator('^')">x^y</button>
+                    <button class="btn function small" data-action="function" data-value="sin">sin</button>
+                    <button class="btn function small" data-action="function" data-value="cos">cos</button>
+                    <button class="btn function small" data-action="function" data-value="tan">tan</button>
+                    <button class="btn operator small" data-action="operator" data-value="×">×</button>
+                    <button class="btn function small" data-action="operator" data-value="^">x^y</button>
 
-                    <button class="btn number small" onclick="appendNumber('7')">7</button>
-                    <button class="btn number small" onclick="appendNumber('8')">8</button>
-                    <button class="btn number small" onclick="appendNumber('9')">9</button>
-                    <button class="btn operator small" onclick="appendOperator('-')">-</button>
-                    <button class="btn function small" onclick="appendFunction('Math.log(')">log</button>
+                    <button class="btn number small" data-action="number" data-value="7">7</button>
+                    <button class="btn number small" data-action="number" data-value="8">8</button>
+                    <button class="btn number small" data-action="number" data-value="9">9</button>
+                    <button class="btn operator small" data-action="operator" data-value="-">-</button>
+                    <button class="btn function small" data-action="function" data-value="log">log</button>
 
-                    <button class="btn number small" onclick="appendNumber('4')">4</button>
-                    <button class="btn number small" onclick="appendNumber('5')">5</button>
-                    <button class="btn number small" onclick="appendNumber('6')">6</button>
-                    <button class="btn operator small" onclick="appendOperator('+')">+</button>
-                    <button class="btn function small" onclick="appendFunction('Math.ln(')">ln</button>
+                    <button class="btn number small" data-action="number" data-value="4">4</button>
+                    <button class="btn number small" data-action="number" data-value="5">5</button>
+                    <button class="btn number small" data-action="number" data-value="6">6</button>
+                    <button class="btn operator small" data-action="operator" data-value="+">+</button>
+                    <button class="btn function small" data-action="function" data-value="ln">ln</button>
 
-                    <button class="btn number small" onclick="appendNumber('1')">1</button>
-                    <button class="btn number small" onclick="appendNumber('2')">2</button>
-                    <button class="btn number small" onclick="appendNumber('3')">3</button>
-                    <button class="btn function small" onclick="appendConstant('Math.PI')">π</button>
-                    <button class="btn function small" onclick="appendConstant('Math.E')">e</button>
+                    <button class="btn number small" data-action="number" data-value="1">1</button>
+                    <button class="btn number small" data-action="number" data-value="2">2</button>
+                    <button class="btn number small" data-action="number" data-value="3">3</button>
+                    <button class="btn function small" data-action="constant" data-value="3.141592653589793" data-display="π">π</button>
+                    <button class="btn function small" data-action="constant" data-value="2.718281828459045" data-display="e">e</button>
 
-                    <button class="btn function small" onclick="toggleSign()">+/-</button>
-                    <button class="btn number small" onclick="appendNumber('0')">0</button>
-                    <button class="btn number small" onclick="appendNumber('.')">.</button>
-                    <button class="btn function small" onclick="appendOperator('(')">(</button>
-                    <button class="btn function small" onclick="appendOperator(')')">)</button>
+                    <button class="btn function small" data-action="toggleSign">+/-</button>
+                    <button class="btn number small" data-action="number" data-value="0">0</button>
+                    <button class="btn number small" data-action="number" data-value=".">.</button>
+                    <button class="btn function small" data-action="operator" data-value="(">(</button>
+                    <button class="btn function small" data-action="operator" data-value=")">)</button>
 
-                    <button class="btn equals scientific-equals" onclick="calculate()">=</button>
+                    <button class="btn equals scientific-equals" data-action="calculate">=</button>
                 </div>
             </div>
 
@@ -141,94 +142,28 @@
             <div class="korean-units-info">
                 <h3>한글 큰숫자 단위</h3>
                 <div class="units-grid">
-                    <div class="unit-item">
-                        <span class="unit-name">일</span>
-                        <span class="unit-value">10⁰</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">십</span>
-                        <span class="unit-value">10¹</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">백</span>
-                        <span class="unit-value">10²</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">천</span>
-                        <span class="unit-value">10³</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">만</span>
-                        <span class="unit-value">10⁴</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">억</span>
-                        <span class="unit-value">10⁸</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">조</span>
-                        <span class="unit-value">10¹²</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">경</span>
-                        <span class="unit-value">10¹⁶</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">해</span>
-                        <span class="unit-value">10²⁰</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">자</span>
-                        <span class="unit-value">10²⁴</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">양</span>
-                        <span class="unit-value">10²⁸</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">구</span>
-                        <span class="unit-value">10³²</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">간</span>
-                        <span class="unit-value">10³⁶</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">정</span>
-                        <span class="unit-value">10⁴⁰</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">재</span>
-                        <span class="unit-value">10⁴⁴</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">극</span>
-                        <span class="unit-value">10⁴⁸</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">항하사</span>
-                        <span class="unit-value">10⁵²</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">아승기</span>
-                        <span class="unit-value">10⁵⁶</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">나유타</span>
-                        <span class="unit-value">10⁶⁰</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">불가사의</span>
-                        <span class="unit-value">10⁶⁴</span>
-                    </div>
-                    <div class="unit-item">
-                        <span class="unit-name">무량대수</span>
-                        <span class="unit-value">10⁶⁸</span>
-                    </div>
-                    <div class="unit-item highlight">
-                        <span class="unit-name">무극</span>
-                        <span class="unit-value">10⁷²</span>
-                    </div>
+                    <div class="unit-item"><span class="unit-name">일</span><span class="unit-value">10⁰</span></div>
+                    <div class="unit-item"><span class="unit-name">십</span><span class="unit-value">10¹</span></div>
+                    <div class="unit-item"><span class="unit-name">백</span><span class="unit-value">10²</span></div>
+                    <div class="unit-item"><span class="unit-name">천</span><span class="unit-value">10³</span></div>
+                    <div class="unit-item"><span class="unit-name">만</span><span class="unit-value">10⁴</span></div>
+                    <div class="unit-item"><span class="unit-name">억</span><span class="unit-value">10⁸</span></div>
+                    <div class="unit-item"><span class="unit-name">조</span><span class="unit-value">10¹²</span></div>
+                    <div class="unit-item"><span class="unit-name">경</span><span class="unit-value">10¹⁶</span></div>
+                    <div class="unit-item"><span class="unit-name">해</span><span class="unit-value">10²⁰</span></div>
+                    <div class="unit-item"><span class="unit-name">자</span><span class="unit-value">10²⁴</span></div>
+                    <div class="unit-item"><span class="unit-name">양</span><span class="unit-value">10²⁸</span></div>
+                    <div class="unit-item"><span class="unit-name">구</span><span class="unit-value">10³²</span></div>
+                    <div class="unit-item"><span class="unit-name">간</span><span class="unit-value">10³⁶</span></div>
+                    <div class="unit-item"><span class="unit-name">정</span><span class="unit-value">10⁴⁰</span></div>
+                    <div class="unit-item"><span class="unit-name">재</span><span class="unit-value">10⁴⁴</span></div>
+                    <div class="unit-item"><span class="unit-name">극</span><span class="unit-value">10⁴⁸</span></div>
+                    <div class="unit-item"><span class="unit-name">항하사</span><span class="unit-value">10⁵²</span></div>
+                    <div class="unit-item"><span class="unit-name">아승기</span><span class="unit-value">10⁵⁶</span></div>
+                    <div class="unit-item"><span class="unit-name">나유타</span><span class="unit-value">10⁶⁰</span></div>
+                    <div class="unit-item"><span class="unit-name">불가사의</span><span class="unit-value">10⁶⁴</span></div>
+                    <div class="unit-item"><span class="unit-name">무량대수</span><span class="unit-value">10⁶⁸</span></div>
+                    <div class="unit-item highlight"><span class="unit-name">무극</span><span class="unit-value">10⁷²</span></div>
                 </div>
             </div>
         </div>

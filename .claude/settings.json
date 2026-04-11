@@ -1,0 +1,32 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hook": "bash -c 'echo \"[피드백 루프] 파일 수정 감지 - 커밋 전 npm run check 실행을 권장합니다.\"'"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hook": "bash -c 'if echo \"$TOOL_INPUT\" | grep -q \"git commit\"; then cd /home/user/bigNumCal && bash scripts/pre-commit-check.sh; fi'"
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hook": "bash -c 'cd /home/user/bigNumCal && if [ -n \"$(git status --porcelain src/ 2>/dev/null)\" ]; then echo \"[피드백 루프] src/ 변경 감지. npm run feedback 실행 중...\" && npm run feedback 2>&1; fi'"
+      }
+    ]
+  }
+}
