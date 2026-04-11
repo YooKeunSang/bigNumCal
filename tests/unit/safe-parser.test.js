@@ -75,6 +75,53 @@ skipIfNotImplemented('에러 처리', () => {
   });
 });
 
+skipIfNotImplemented('BigInt 정밀도 보장', () => {
+  test('큰 정수 덧셈에서 정밀도 손실 없음', () => {
+    const result = SafeParser.evaluate('99999999999999999 + 1');
+    expect(typeof result).toBe('bigint');
+    expect(result).toBe(100000000000000000n);
+  });
+
+  test('큰 정수 곱셈에서 정밀도 손실 없음', () => {
+    const result = SafeParser.evaluate('1000000000000 × 1000000000000');
+    expect(typeof result).toBe('bigint');
+    expect(result).toBe(1000000000000000000000000n);
+  });
+
+  test('거듭제곱으로 큰 숫자 생성', () => {
+    const result = SafeParser.evaluate('10 ^ 20');
+    expect(typeof result).toBe('bigint');
+    expect(result).toBe(100000000000000000000n);
+  });
+
+  test('BigInt 뺄셈 정밀도', () => {
+    const result = SafeParser.evaluate('100000000000000000 - 1');
+    expect(typeof result).toBe('bigint');
+    expect(result).toBe(99999999999999999n);
+  });
+
+  test('BigInt 정수 나눗셈 (나머지 없음)', () => {
+    const result = SafeParser.evaluate('1000000000000000000 ÷ 2');
+    expect(typeof result).toBe('bigint');
+    expect(result).toBe(500000000000000000n);
+  });
+
+  test('BigInt 나눗셈 (나머지 있으면 Number 전환)', () => {
+    const result = SafeParser.evaluate('10 ÷ 3');
+    expect(typeof result).toBe('number');
+  });
+
+  test('소수와 정수 혼합 시 Number로 처리', () => {
+    const result = SafeParser.evaluate('3.14 + 1');
+    expect(typeof result).toBe('number');
+  });
+
+  test('함수 적용 시 Number로 처리', () => {
+    const result = SafeParser.evaluate('sqrt(4)');
+    expect(typeof result).toBe('number');
+  });
+});
+
 describe('eval 미사용 확인 (항상 실행)', () => {
   test('SafeParser 모듈 소스에 eval이 없어야 한다', () => {
     const fs = require('fs');
