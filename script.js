@@ -118,24 +118,44 @@ function shuntingYard(tokens) {
   return output;
 }
 
+function _toNumber(val) {
+  return typeof val === 'bigint' ? Number(val) : val;
+}
+
 function evaluateRPN(rpn) {
   const stack = [];
   for (const t of rpn) {
-    if (t.type === TOKEN.NUMBER) { stack.push(parseFloat(t.value)); continue; }
+    if (t.type === TOKEN.NUMBER) {
+      stack.push(t.value.includes('.') ? parseFloat(t.value) : BigInt(t.value));
+      continue;
+    }
     if (t.type === TOKEN.CONSTANT) { stack.push(CONSTS[t.value]); continue; }
     if (t.type === TOKEN.OPERATOR) {
       const b = stack.pop(), a = stack.pop();
+      const bothBigInt = typeof a === 'bigint' && typeof b === 'bigint';
       switch (t.value) {
-        case '+': stack.push(a + b); break;
-        case '-': stack.push(a - b); break;
-        case '×': stack.push(a * b); break;
-        case '÷': if (b === 0) throw new Error('0으로 나눌 수 없습니다'); stack.push(a / b); break;
-        case '^': stack.push(Math.pow(a, b)); break;
+        case '+': stack.push(bothBigInt ? a + b : _toNumber(a) + _toNumber(b)); break;
+        case '-': stack.push(bothBigInt ? a - b : _toNumber(a) - _toNumber(b)); break;
+        case '×': stack.push(bothBigInt ? a * b : _toNumber(a) * _toNumber(b)); break;
+        case '÷':
+          if (bothBigInt) {
+            if (b === 0n) throw new Error('0으로 나눌 수 없습니다');
+            stack.push(a % b === 0n ? a / b : _toNumber(a) / _toNumber(b));
+          } else {
+            const nb = _toNumber(b);
+            if (nb === 0) throw new Error('0으로 나눌 수 없습니다');
+            stack.push(_toNumber(a) / nb);
+          }
+          break;
+        case '^':
+          if (bothBigInt && b >= 0n) { stack.push(a ** b); }
+          else { stack.push(Math.pow(_toNumber(a), _toNumber(b))); }
+          break;
       }
       continue;
     }
     if (t.type === TOKEN.FUNCTION) {
-      const a = stack.pop();
+      const a = _toNumber(stack.pop());
       switch (t.value) {
         case 'sin': stack.push(Math.sin(a)); break;
         case 'cos': stack.push(Math.cos(a)); break;
@@ -375,8 +395,10 @@ function calculate() {
     const calcExpression = state.expression + state.currentInput;
     const result = safeEvaluate(calcExpression);
     let resultStr;
-    if (Number.isInteger(result)) {
-      resultStr = BigInt(result).toString();
+    if (typeof result === 'bigint') {
+      resultStr = result.toString();
+    } else if (Number.isInteger(result)) {
+      resultStr = String(result);
     } else {
       resultStr = String(Math.round(result * 10000000000) / 10000000000);
     }

@@ -98,8 +98,10 @@ function calculate() {
     const result = evaluate(calcExpression);
 
     let resultStr;
-    if (Number.isInteger(result)) {
-      resultStr = BigInt(result).toString();
+    if (typeof result === 'bigint') {
+      resultStr = result.toString();
+    } else if (Number.isInteger(result)) {
+      resultStr = String(result);
     } else {
       resultStr = String(Math.round(result * 10000000000) / 10000000000);
     }
